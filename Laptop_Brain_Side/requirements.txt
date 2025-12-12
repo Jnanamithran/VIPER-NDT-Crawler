@@ -1,0 +1,13 @@
+# CORE AI & VISION
+ultralytics==8.3.0       # The YOLOv8 AI Library
+opencv-python==4.10.0    # For reading the video stream
+torch==2.4.0             # PyTorch (Required by YOLO)
+torchvision==0.19.0      # Vision tools for PyTorch
+
+# NETWORKING
+requests==2.32.0         # To send commands (Forward/Stop) to the Pi
+
+# UTILITIES
+numpy==1.26.0            # Math for image processing
+pillow==10.4.0           # Image handling helper
+tqdm==4.66.0             # Progress bars (useful during training)

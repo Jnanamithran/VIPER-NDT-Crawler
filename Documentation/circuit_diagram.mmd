@@ -1,0 +1,23 @@
+graph TD
+    %% POWER SYSTEM
+    Battery[11.1V LiPo Battery] -->|12V Power| Switch[Master Switch]
+    Switch -->|12V| L298N[L298N Motor Driver]
+    Switch -->|12V| Buck[LM2596 Buck Converter]
+    Buck -->|5V Regulated| RPi[Raspberry Pi 3B+]
+    
+    %% MOTOR CONTROL
+    RPi -->|GPIO 17/27/22/23| L298N
+    L298N -->|Left Motor Output| MotorL[Left Motor]
+    L298N -->|Right Motor Output| MotorR[Right Motor]
+    
+    %% SENSORS & VISION
+    RPi -->|USB Port| Cam[Logitech C270 Camera]
+    RPi -->|GPIO 17| IR[IR/PIR Sensor]
+    
+    %% NETWORK
+    RPi -.->|5GHz Wi-Fi| Laptop[Laptop Control Station]
+    
+    %% STYLING
+    style Battery fill:#f9f,stroke:#333,stroke-width:2px
+    style RPi fill:#9f9,stroke:#333,stroke-width:4px
+    style Laptop fill:#9ff,stroke:#333,stroke-width:2px

@@ -1,0 +1,16 @@
+Category,Item Name,Specification,Quantity,Est. Price (INR),Status
+Core Computing,Raspberry Pi 3B+,1.4GHz Quad Core / 1GB RAM,1,0,Owned
+Core Computing,Micro SD Card,32GB Class 10 (SanDisk),1,450,To Buy
+Vision,USB Web Camera,Logitech C270 (720p),1,0,Owned
+Sensors,IR Motion Sensor,PIR or Obstacle Avoidance,1,0,Owned
+Power,LiPo Battery,3S 11.1V 2200mAh (Orange),1,1500,To Buy
+Power,LiPo Charger,B3 Compact Charger,1,550,To Buy
+Power,Buck Converter,LM2596 (12V to 5V Step Down),1,150,To Buy
+Power,Switch,Rocker Switch (2-pin),1,50,To Buy
+Motors,Geared DC Motors,12V 300RPM High Torque,2,600,To Buy
+Motors,Motor Driver,L298N Module,1,200,To Buy
+Chassis,Robot Base,Acrylic or Metal Tank Chassis,1,1500,To Buy
+Misc,Jumper Wires,Male-Female / Male-Male set,1,200,To Buy
+Misc,Cooling Fan,5V DC Fan for Pi 3B+,1,150,To Buy
+,,,,,
+TOTAL ESTIMATED COST,,,,5350,

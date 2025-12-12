@@ -1,0 +1,13 @@
+# WEB SERVER & STREAMING
+Flask==3.0.0             # The Web Server framework
+Werkzeug==3.0.1          # Flask dependency
+
+# HARDWARE CONTROL
+RPi.GPIO==0.7.1          # To control the Motor Driver pins
+
+# VISION (LIGHTWEIGHT)
+opencv-python-headless==4.10.0  # OpenCV without GUI (Saves RAM on Pi)
+numpy==1.26.0            # Required by OpenCV
+
+# NETWORKING
+requests==2.32.0         # Useful for sending telemetry back to laptop
