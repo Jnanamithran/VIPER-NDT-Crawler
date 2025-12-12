@@ -30,7 +30,7 @@ Current Phase: Phase 2 – Network Integration
 -----------------------------------------------------
 
 ## 📂 Repository Structure
-
+```
 VIPER_Project/
 │
 ├── RaspberryPi_Side/
@@ -47,6 +47,7 @@ VIPER_Project/
     ├── circuit_diagram.mmd
     ├── budget_list.csv
     └── abstract.md
+```
 
 -----------------------------------------------------
 
