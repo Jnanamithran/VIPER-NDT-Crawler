@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>VIPER Mission Control</title>
+    <style>
+        body { background: #121212; color: #00ff41; font-family: 'Courier New', Courier, monospace; text-align: center; }
+        .container { margin-top: 50px; }
+        .feed-box { border: 3px solid #333; display: inline-block; background: #000; padding: 10px; }
+        .status-msg { color: #ff4757; font-weight: bold; margin: 15px; height: 20px; }
+        .btn { padding: 10px 20px; background: #121212; color: #00ff41; border: 1px solid #00ff41; cursor: pointer; margin: 5px; }
+        .btn:hover { background: #00ff41; color: #000; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>VIPER SYSTEM v1.0 - OPTICAL FEED</h1>
+        <div class="feed-box">
+            <img src="{{ url_for('video_feed') }}" width="640">
+        </div>
+        <div id="error-log" class="status-msg"></div>
+        <div class="controls">
+            <button class="btn" onclick="checkSensor('thermal')">THERMAL MODE</button>
+            <button class="btn" onclick="checkSensor('gas')">GAS MONITOR</button>
+        </div>
+    </div>
+
+    <script>
+        function checkSensor(name) {
+            fetch('/check_sensor/' + name)
+                .then(response => response.json())
+                .then(data => {
+                    const log = document.getElementById('error-log');
+                    log.innerText = "⚠️ " + data.message;
+                    setTimeout(() => { log.innerText = ""; }, 4000);
+                });
+        }
+    </script>
+</body>
+</html>
