@@ -1,39 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <title>VIPER Mission Control</title>
+    <title>VIPER DASHBOARD</title>
     <style>
-        body { background: #121212; color: #00ff41; font-family: 'Courier New', Courier, monospace; text-align: center; }
-        .container { margin-top: 50px; }
-        .feed-box { border: 3px solid #333; display: inline-block; background: #000; padding: 10px; }
-        .status-msg { color: #ff4757; font-weight: bold; margin: 15px; height: 20px; }
-        .btn { padding: 10px 20px; background: #121212; color: #00ff41; border: 1px solid #00ff41; cursor: pointer; margin: 5px; }
-        .btn:hover { background: #00ff41; color: #000; }
+        body { background: #121212; color: #00ff41; font-family: monospace; text-align: center; }
+        .feed { border: 2px solid #333; margin: 20px auto; width: 640px; background: #000; }
+        .btn { padding: 12px 24px; background: #1a1a1a; color: #00ff41; border: 1px solid #00ff41; cursor: pointer; }
+        .alert { color: #ff3333; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>VIPER SYSTEM v1.0 - OPTICAL FEED</h1>
-        <div class="feed-box">
-            <img src="{{ url_for('video_feed') }}" width="640">
-        </div>
-        <div id="error-log" class="status-msg"></div>
-        <div class="controls">
-            <button class="btn" onclick="checkSensor('thermal')">THERMAL MODE</button>
-            <button class="btn" onclick="checkSensor('gas')">GAS MONITOR</button>
-        </div>
-    </div>
-
+    <h1>VIPER MISSION CONTROL</h1>
+    <div class="feed"><img id="vStream" src="/video_feed" width="100%"></div>
+    <div id="msg" class="alert"></div>
+    <button class="btn" onclick="snap()">📸 SNAP TO LAPTOP</button>
+    <button class="btn" onclick="check('thermal')">THERMAL</button>
+    <button class="btn" onclick="check('gas')">GAS</button>
+    <canvas id="c" style="display:none;"></canvas>
     <script>
-        function checkSensor(name) {
-            fetch('/check_sensor/' + name)
-                .then(response => response.json())
-                .then(data => {
-                    const log = document.getElementById('error-log');
-                    log.innerText = "⚠️ " + data.message;
-                    setTimeout(() => { log.innerText = ""; }, 4000);
-                });
+        function snap() {
+            const img = document.getElementById('vStream'), canvas = document.getElementById('c');
+            canvas.width = 640; canvas.height = 480;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            const a = document.createElement('a');
+            a.download = `VIPER_Defect_${Date.now()}.jpg`;
+            a.href = canvas.toDataURL('image/jpeg'); a.click();
         }
+        function check(s) { fetch('/check_sensor/'+s).then(r=>r.json()).then(d=> document.getElementById('msg').innerText = d.message); }
     </script>
 </body>
 </html>
