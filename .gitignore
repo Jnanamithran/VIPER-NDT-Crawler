@@ -68,5 +68,6 @@ weights/
 
 # Missions (runtime-generated)
 missions/
-
+models/
+    
 # End of file
