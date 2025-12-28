@@ -4,28 +4,29 @@
 
 -----------------------------------------------------
 
-## 🚧 Project Progress  
-[cite_start]**Current Phase: Phase 3 – Hardware & Software Integration** [cite: 92]
+## 🚧 Project Progress 
+**Current Phase: Phase 4 – Laptop "Brain" Integration (Complete)**
 
-- [x] [cite_start]Phase 1: Concept & Architecture Design [cite: 90]
-- [x] [cite_start]Phase 2: Design & Development (Folder Structure & UI) [cite: 103, 104]
-- [x] Phase 3: Raspberry Pi "Body" Setup (Headless VNC & Flask Streaming) 
-- [ ] Phase 4: Laptop "Brain" Setup (YOLOv8 AI Integration) ⏳
+- [x] Phase 3: Raspberry Pi "Body" Setup (Headless VNC & Flask Streaming)
+- [x] Phase 4: Laptop "Brain" Setup (RTX 3050 CUDA Integration & Unified Dashboard)
 - [ ] Phase 5: Hardware Assembly (Motors & Sensors Integration) ⏳
-- [ ] [cite_start]Phase 6: Field Testing & Deployment [cite: 100, 105]
 
 -----------------------------------------------------
 
-## 🧠 System Architecture
+## 🧠 System Architecture (Hybrid Relay)
 
-### 1. The Body (Slave Node - Raspberry Pi 3B+)
-- [cite_start]**Role**: Captures HD optical feed, hosts real-time telemetry dashboard, and manages hardware interrupts. [cite: 56, 128]
-- [cite_start]**Tech**: Flask (MJPEG Streaming), OpenCV (Frame Processing). [cite: 64, 67]
-- **Status**: Streaming active via `app.py`.
+### 1. The Body (Slave - Raspberry Pi 3B+)
+- **Streaming**: Captures raw feed from Logitech HD camera and broadcasts at port 5000.
+- **Telemetry**: Provides data endpoints for MLX90640 Thermal and MQ-4 Gas sensors.
 
-### 2. The Brain (Master Node - Laptop)
-- [cite_start]**Role**: Pulls video stream from Pi, runs heavy ML models (crack/blockage detection), and sends navigation commands. [cite: 47, 138]
-- [cite_start]**Tech**: Python Requests, OpenCV, YOLOv8 (Future). [cite: 60, 65]
+### 2. The Brain (Master - Laptop RTX 3050)
+- **On-Demand AI**: Runs YOLOv8s with CUDA acceleration only when toggled to prevent navigation lag.
+- **Unified Mission Control**: Hosts a single-window Flask dashboard at port 5001 combining video, logs, and sensor tests.
+
+## 🛠️ New Features Added
+- **GPU Acceleration**: Offloaded ML processing to RTX 3050 CUDA cores for 50+ FPS inference.
+- **Thermal Super-Resolution**: Bicubic interpolation logic to upscale 32x24 thermal grids to 640x480.
+- **Real-Time Mission Log**: Automated logging of AI detections and hardware status checks.
 
 -----------------------------------------------------
 

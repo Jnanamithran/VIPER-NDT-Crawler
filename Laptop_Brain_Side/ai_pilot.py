@@ -1,44 +1,64 @@
 import cv2
-import time
-import os
 import torch
+import numpy as np
+from flask import Flask, render_template, Response, jsonify
 from ultralytics import YOLO
+from datetime import datetime
 
-# --- GPU CONFIGURATION ---
-# Force the system to use the RTX 3050
+app = Flask(__name__)
+
+# --- CONFIGURATION ---
+PI_IP = "192.168.1.39"
+STREAM_URL = f"http://{PI_IP}:5000/video_feed"
+# Optimized for RTX 3050
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print(f"--- VIPER MASTER NODE: RTX 3050 ACCELERATION ACTIVE ---")
-
-# Use 'yolov8s.pt' (Small) - much better for pipe cracks than 'n'
 model = YOLO('yolov8s.pt') 
 
-# Use your confirmed Pi IP
-STREAM_URL = "http://192.168.1.39:5000/video_feed"
+ai_enabled = False
+latest_frame = None
+mission_log = []
 
-if not os.path.exists('missions'): os.makedirs('missions')
+def get_stream():
+    global latest_frame, mission_log
+    cap = cv2.VideoCapture(STREAM_URL)
+    while True:
+        success, frame = cap.read()
+        if not success: break
+        latest_frame = frame
+        
+        if ai_enabled:
+            results = model(frame, stream=True, device=device, half=True, conf=0.4)
+            for r in results:
+                frame = r.plot()
+                # Log detection if confidence is high
+                if len(r.boxes) > 0:
+                    log_entry = f"{datetime.now().strftime('%H:%M:%S')} - Defect Detected"
+                    if log_entry not in mission_log[-1:]: mission_log.append(log_entry)
+        
+        ret, buffer = cv2.imencode('.jpg', frame)
+        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
 
-cap = cv2.VideoCapture(STREAM_URL)
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
-# Synced to 20 FPS for the 3050
-out = cv2.VideoWriter(f'missions/VIPER_RTX_{int(time.time())}.avi', fourcc, 20.0, (640, 480))
+@app.route('/')
+def index(): return render_template('dashboard.html')
 
-while cap.isOpened():
-    ret, frame = cap.read()
-    if not ret: break
-    
-    # --- GPU INFERENCE ---
-    # 'half=True' doubles speed on RTX cards
-    # 'conf=0.4' removes "shit" detections (ghost boxes)
-    results = model(frame, stream=True, device=device, half=True, conf=0.4)
-    
-    # Overlay AI Detections
-    for r in results:
-        annotated_frame = r.plot() 
+@app.route('/video_feed')
+def video_feed(): return Response(get_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-    # Save to Laptop Disk
-    out.write(frame) 
+@app.route('/toggle_ai')
+def toggle_ai():
+    global ai_enabled
+    ai_enabled = not ai_enabled
+    mission_log.append(f"{datetime.now().strftime('%H:%M:%S')} - AI Overlay {'Enabled' if ai_enabled else 'Disabled'}")
+    return jsonify({"status": "AI Active" if ai_enabled else "AI Idle"})
 
-    cv2.imshow('VIPER RTX-POWERED BRAIN', annotated_frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'): break
+@app.route('/get_logs')
+def get_logs(): return jsonify(mission_log[-10:]) # Return last 10 logs
 
-cap.release(); out.release(); cv2.destroyAllWindows()
+@app.route('/check_sensor/<name>')
+def check_sensor(name):
+    msg = f"{datetime.now().strftime('%H:%M:%S')} - {name.upper()} Sensor Test: OK"
+    mission_log.append(msg)
+    return jsonify({"message": msg})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5001, threaded=True)

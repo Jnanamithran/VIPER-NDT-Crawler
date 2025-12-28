@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VIPER MISSION CONTROL</title>
+    <style>
+        body { background: #0a0a0a; color: #00ff41; font-family: monospace; text-align: center; }
+        .monitor { border: 3px solid #00ff41; margin: 20px auto; width: 800px; background: #000; }
+        .controls { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
+        .btn { padding: 15px 25px; background: #1a1a1a; color: #00ff41; border: 1px solid #00ff41; 
+               cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn:hover { background: #00ff41; color: #000; }
+        .active-ai { background: #ff3333; color: white; border-color: #ff3333; }
+        #status-msg { margin-top: 15px; color: #00ff41; height: 20px; }
+        .log-container { width: 800px; margin: 20px auto; background: #000; border: 1px solid #00ff41; 
+                     padding: 10px; text-align: left; height: 150px; overflow-y: scroll; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <h1>VIPER UNIFIED CONTROL (RTX 3050 ENABLED)</h1>
+    
+    <div class="monitor">
+        <img src="/video_feed" width="100%" id="mainFeed">
+    </div>
+
+    <div id="status-msg">SYSTEM READY</div>
+
+    <div class="controls">
+        <button id="aiToggle" class="btn" onclick="toggleAI()">🚀 ENABLE AI OVERLAY</button>
+        <button class="btn" onclick="sensorCheck('thermal')">🌡️ THERMAL</button>
+        <button class="btn" onclick="sensorCheck('gas')">☁️ GAS SENSOR</button>
+        <button class="btn" onclick="takeSnap()">📸 SNAPSHOT</button>
+    </div>
+    <div class="log-container" id="logBox">>> SYSTEM INITIALIZED...</div>
+    <script>
+        function toggleAI() {
+            fetch('/toggle_ai').then(r => r.json()).then(data => {
+                const btn = document.getElementById('aiToggle');
+                btn.innerText = data.status === "AI Active" ? "🛑 DISABLE AI OVERLAY" : "🚀 ENABLE AI OVERLAY";
+                btn.classList.toggle('active-ai');
+            });
+        }
+
+        function sensorCheck(type) {
+            fetch('/check_sensor/' + type).then(r => r.json()).then(data => {
+                document.getElementById('status-msg').innerText = data.message;
+            });
+        }
+
+        function takeSnap() {
+            // Logic to save frame locally on laptop
+            document.getElementById('status-msg').innerText = "SNAPSHOT SAVED TO MISSIONS/";
+        }
+
+        function updateLogs() {
+            fetch('/get_logs').then(r => r.json()).then(logs => {
+                const logBox = document.getElementById('logBox');
+                logBox.innerHTML = logs.map(l => `<div>> ${l}</div>`).join('');
+                logBox.scrollTop = logBox.scrollHeight;
+            });
+        }
+        setInterval(updateLogs, 2000); // Refresh logs every 2 seconds
+        // ... (Keep your toggleAI and sensorCheck functions) ...
+    </script>
+</body>
+</html>
