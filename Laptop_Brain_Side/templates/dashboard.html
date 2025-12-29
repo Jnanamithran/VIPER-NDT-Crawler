@@ -3,63 +3,87 @@
 <head>
     <title>VIPER MISSION CONTROL</title>
     <style>
-        body { background: #0a0a0a; color: #00ff41; font-family: monospace; text-align: center; }
-        .monitor { border: 3px solid #00ff41; margin: 20px auto; width: 800px; background: #000; }
-        .controls { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
-        .btn { padding: 15px 25px; background: #1a1a1a; color: #00ff41; border: 1px solid #00ff41; 
-               cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .btn:hover { background: #00ff41; color: #000; }
-        .active-ai { background: #ff3333; color: white; border-color: #ff3333; }
-        #status-msg { margin-top: 15px; color: #00ff41; height: 20px; }
-        .log-container { width: 800px; margin: 20px auto; background: #000; border: 1px solid #00ff41; 
-                     padding: 10px; text-align: left; height: 150px; overflow-y: scroll; font-size: 0.9em; }
+        /* New Color Scheme: Deep Steel & Electric Blue */
+        body { background: #0b0e14; color: #00d4ff; font-family: 'Segoe UI', monospace; margin: 0; overflow: hidden; }
+        .header { background: #161b22; padding: 10px; border-bottom: 2px solid #00d4ff; }
+        
+        /* Side-by-Side Layout */
+        .main-container { display: flex; height: calc(100vh - 60px); padding: 10px; gap: 10px; }
+        
+        /* Left Side: Video */
+        .video-section { flex: 2; position: relative; background: #000; border: 1px solid #30363d; border-radius: 8px; overflow: hidden; }
+        #mainFeed { width: 100%; height: 100%; object-fit: contain; }
+
+        /* Right Side: Logs */
+        .log-section { flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; display: flex; flex-direction: column; }
+        .log-header { background: #161b22; padding: 10px; font-weight: bold; border-bottom: 1px solid #30363d; }
+        .log-container { flex-grow: 1; padding: 10px; text-align: left; overflow-y: auto; font-family: 'Courier New'; font-size: 0.85em; color: #8b949e; }
+        .log-entry { margin-bottom: 5px; border-left: 2px solid #00d4ff; padding-left: 8px; }
+
+        /* Overlays & Buttons */
+        .controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 50px; }
+        .btn { padding: 10px 20px; background: transparent; color: #00d4ff; border: 1px solid #00d4ff; border-radius: 20px; cursor: pointer; font-size: 0.8em; }
+        .btn:hover { background: #00d4ff; color: #000; }
+        .btn-active { background: #ff4b4b; color: white; border-color: #ff4b4b; }
+        
+        .fs-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; }
     </style>
 </head>
 <body>
-    <h1>VIPER UNIFIED CONTROL (RTX 3050 ENABLED)</h1>
+    <div class="header">VIPER MISSION CONTROL</div>
     
-    <div class="monitor">
-        <img src="/video_feed" width="100%" id="mainFeed">
+    <div class="main-container">
+        <div class="video-section" id="videoWrapper">
+            <img src="/video_feed" id="mainFeed">
+            <button class="fs-btn" onclick="toggleFullscreen()">[ ] FULLSCREEN</button>
+            
+            <div class="controls">
+                <button id="aiBtn" class="btn" onclick="toggleAI()">AI SCAN</button>
+                <button class="btn" onclick="sensorCheck('thermal')">THERMAL</button>
+                <button class="btn" onclick="sensorCheck('gas')">GAS</button>
+                <button class="btn" onclick="takeSnap()">📸 SNAP</button>
+            </div>
+        </div>
+
+        <div class="log-section">
+            <div class="log-header">MISSION TELEMETRY LOG</div>
+            <div class="log-container" id="logBox">>> SYSTEM READY...</div>
+        </div>
     </div>
 
-    <div id="status-msg">SYSTEM READY</div>
-
-    <div class="controls">
-        <button id="aiToggle" class="btn" onclick="toggleAI()">🚀 ENABLE AI OVERLAY</button>
-        <button class="btn" onclick="sensorCheck('thermal')">🌡️ THERMAL</button>
-        <button class="btn" onclick="sensorCheck('gas')">☁️ GAS SENSOR</button>
-        <button class="btn" onclick="takeSnap()">📸 SNAPSHOT</button>
-    </div>
-    <div class="log-container" id="logBox">>> SYSTEM INITIALIZED...</div>
     <script>
         function toggleAI() {
             fetch('/toggle_ai').then(r => r.json()).then(data => {
-                const btn = document.getElementById('aiToggle');
-                btn.innerText = data.status === "AI Active" ? "🛑 DISABLE AI OVERLAY" : "🚀 ENABLE AI OVERLAY";
-                btn.classList.toggle('active-ai');
+                const btn = document.getElementById('aiBtn');
+                btn.classList.toggle('btn-active');
+                btn.innerText = data.status === "AI Active" ? "AI ACTIVE" : "AI SCAN";
             });
         }
 
         function sensorCheck(type) {
-            fetch('/check_sensor/' + type).then(r => r.json()).then(data => {
-                document.getElementById('status-msg').innerText = data.message;
-            });
-        }
-
-        function takeSnap() {
-            // Logic to save frame locally on laptop
-            document.getElementById('status-msg').innerText = "SNAPSHOT SAVED TO MISSIONS/";
+            fetch('/check_sensor/' + type);
         }
 
         function updateLogs() {
             fetch('/get_logs').then(r => r.json()).then(logs => {
                 const logBox = document.getElementById('logBox');
-                logBox.innerHTML = logs.map(l => `<div>> ${l}</div>`).join('');
+                logBox.innerHTML = logs.map(l => `<div class="log-entry">${l}</div>`).join('');
                 logBox.scrollTop = logBox.scrollHeight;
             });
         }
-        setInterval(updateLogs, 2000); // Refresh logs every 2 seconds
-        // ... (Keep your toggleAI and sensorCheck functions) ...
+
+        function toggleFullscreen() {
+            let elem = document.getElementById("videoWrapper");
+            if (!document.fullscreenElement) {
+                elem.requestFullscreen().catch(err => {
+                    alert(`Error attempting to enable full-screen mode: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        setInterval(updateLogs, 1500);
     </script>
 </body>
 </html>
