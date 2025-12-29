@@ -3,42 +3,52 @@
 <head>
     <title>VIPER MISSION CONTROL</title>
     <style>
-        /* New Color Scheme: Deep Steel & Electric Blue */
-        body { background: #0b0e14; color: #00d4ff; font-family: 'Segoe UI', monospace; margin: 0; overflow: hidden; }
-        .header { background: #161b22; padding: 10px; border-bottom: 2px solid #00d4ff; }
+        /* INDUSTRIAL AMBER CARBON THEME */
+        body { background: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; overflow: hidden; }
+        .header { background: #161b22; padding: 12px 20px; border-bottom: 2px solid #ff9f1c; font-weight: bold; letter-spacing: 2px; display: flex; justify-content: space-between; }
         
-        /* Side-by-Side Layout */
-        .main-container { display: flex; height: calc(100vh - 60px); padding: 10px; gap: 10px; }
-        
-        /* Left Side: Video */
-        .video-section { flex: 2; position: relative; background: #000; border: 1px solid #30363d; border-radius: 8px; overflow: hidden; }
+        .main-container { display: flex; height: calc(100vh - 50px); padding: 10px; gap: 10px; }
+
+        /* VIDEO SECTION (Left - 70%) */
+        .video-section { flex: 2.5; position: relative; background: #000; border: 1px solid #30363d; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
         #mainFeed { width: 100%; height: 100%; object-fit: contain; }
 
-        /* Right Side: Logs */
-        .log-section { flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; display: flex; flex-direction: column; }
-        .log-header { background: #161b22; padding: 10px; font-weight: bold; border-bottom: 1px solid #30363d; }
-        .log-container { flex-grow: 1; padding: 10px; text-align: left; overflow-y: auto; font-family: 'Courier New'; font-size: 0.85em; color: #8b949e; }
-        .log-entry { margin-bottom: 5px; border-left: 2px solid #00d4ff; padding-left: 8px; }
+        /* LOG SECTION (Right - 30%) */
+        .log-section { flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 12px; display: flex; flex-direction: column; }
+        .log-header { background: #161b22; padding: 10px; color: #ff9f1c; font-size: 0.9em; border-bottom: 1px solid #30363d; }
+        .log-container { flex-grow: 1; padding: 15px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 0.85em; }
+        .log-entry { margin-bottom: 8px; border-left: 3px solid #58a6ff; padding-left: 10px; color: #8b949e; transition: all 0.3s; }
+        .log-entry.defect { border-left-color: #f85149; color: #ff7b72; font-weight: bold; }
 
-        /* Overlays & Buttons */
-        .controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 50px; }
-        .btn { padding: 10px 20px; background: transparent; color: #00d4ff; border: 1px solid #00d4ff; border-radius: 20px; cursor: pointer; font-size: 0.8em; }
-        .btn:hover { background: #00d4ff; color: #000; }
-        .btn-active { background: #ff4b4b; color: white; border-color: #ff4b4b; }
+        /* OVERLAY CONTROLS (Floating in Video) */
+        .controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; background: rgba(22, 27, 34, 0.85); padding: 12px 25px; border-radius: 50px; border: 1px solid rgba(255, 159, 28, 0.3); backdrop-filter: blur(5px); }
+        .btn { padding: 8px 18px; background: transparent; color: #ff9f1c; border: 1px solid #ff9f1c; border-radius: 20px; cursor: pointer; font-size: 0.8em; font-weight: bold; transition: 0.2s; }
+        .btn:hover { background: #ff9f1c; color: #0d1117; }
+        .btn-active { background: #f85149; color: white; border-color: #f85149; box-shadow: 0 0 15px rgba(248, 81, 73, 0.4); }
         
-        .fs-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; }
+        /* FULLSCREEN LOG OVERLAY */
+        .fs-log-overlay { position: absolute; top: 20px; left: 20px; width: 250px; pointer-events: none; opacity: 0; transition: 0.5s; }
+        :fullscreen .fs-log-overlay { opacity: 0.8; }
+        
+        .fs-btn { position: absolute; top: 15px; right: 15px; background: rgba(48, 54, 61, 0.6); color: #c9d1d9; border: 1px solid #30363d; padding: 6px 12px; cursor: pointer; border-radius: 6px; font-size: 0.7em; }
     </style>
 </head>
 <body>
-    <div class="header">VIPER MISSION CONTROL</div>
+    <div class="header">
+        <span>VIPER MISSION CONTROL</span>
+        <span style="color: #58a6ff; font-size: 0.8em;">RTX 3050 LOAD: OPTIMAL</span>
+    </div>
     
     <div class="main-container">
         <div class="video-section" id="videoWrapper">
             <img src="/video_feed" id="mainFeed">
-            <button class="fs-btn" onclick="toggleFullscreen()">[ ] FULLSCREEN</button>
+            
+            <div class="fs-log-overlay" id="fsLog"></div>
+            
+            <button class="fs-btn" onclick="toggleFullscreen()">⛶ FULLSCREEN</button>
             
             <div class="controls">
-                <button id="aiBtn" class="btn" onclick="toggleAI()">AI SCAN</button>
+                <button id="aiBtn" class="btn" onclick="toggleAI()">AI SCANNER</button>
                 <button class="btn" onclick="sensorCheck('thermal')">THERMAL</button>
                 <button class="btn" onclick="sensorCheck('gas')">GAS</button>
                 <button class="btn" onclick="takeSnap()">📸 SNAP</button>
@@ -46,8 +56,8 @@
         </div>
 
         <div class="log-section">
-            <div class="log-header">MISSION TELEMETRY LOG</div>
-            <div class="log-container" id="logBox">>> SYSTEM READY...</div>
+            <div class="log-header">DIAGNOSTIC TELEMETRY</div>
+            <div class="log-container" id="logBox">>> INITIALIZING SYSTEMS...</div>
         </div>
     </div>
 
@@ -56,34 +66,36 @@
             fetch('/toggle_ai').then(r => r.json()).then(data => {
                 const btn = document.getElementById('aiBtn');
                 btn.classList.toggle('btn-active');
-                btn.innerText = data.status === "AI Active" ? "AI ACTIVE" : "AI SCAN";
+                btn.innerText = data.status === "AI Active" ? "STOP AI" : "AI SCANNER";
             });
         }
 
-        function sensorCheck(type) {
-            fetch('/check_sensor/' + type);
-        }
+        function sensorCheck(type) { fetch('/check_sensor/' + type); }
 
         function updateLogs() {
             fetch('/get_logs').then(r => r.json()).then(logs => {
                 const logBox = document.getElementById('logBox');
-                logBox.innerHTML = logs.map(l => `<div class="log-entry">${l}</div>`).join('');
+                const fsLog = document.getElementById('fsLog');
+                
+                const logHTML = logs.map(l => {
+                    // Check if log contains a detection to apply "defect" style
+                    const isDefect = l.includes("Detected:");
+                    return `<div class="log-entry ${isDefect ? 'defect' : ''}">${l}</div>`;
+                }).join('');
+                
+                logBox.innerHTML = logHTML;
+                fsLog.innerHTML = logHTML; // Sync to fullscreen overlay
                 logBox.scrollTop = logBox.scrollHeight;
             });
         }
 
         function toggleFullscreen() {
             let elem = document.getElementById("videoWrapper");
-            if (!document.fullscreenElement) {
-                elem.requestFullscreen().catch(err => {
-                    alert(`Error attempting to enable full-screen mode: ${err.message}`);
-                });
-            } else {
-                document.exitFullscreen();
-            }
+            if (!document.fullscreenElement) { elem.requestFullscreen(); }
+            else { document.exitFullscreen(); }
         }
 
-        setInterval(updateLogs, 1500);
+        setInterval(updateLogs, 1200);
     </script>
 </body>
 </html>
