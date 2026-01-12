@@ -9,8 +9,13 @@ from datetime import datetime
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
-PI_IP = "192.168.1.39"
+PI_IP = "10.112.192.170"
 STREAM_URL = f"http://{PI_IP}:5000/video_feed"
+MISSION_DIR = "missions"
+
+# Ensure missions folder exists
+if not os.path.exists(MISSION_DIR):
+    os.makedirs(MISSION_DIR)
 
 # RTX 3050 GPU Acceleration
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -19,28 +24,46 @@ model = YOLO('yolov8s.pt')
 # Global State
 ai_enabled = False
 mission_log = []
+latest_frame = None  # Buffer for snapshots
+video_writer = None  # Global video writer object
 
 def get_stream():
-    global ai_enabled, mission_log
+    global ai_enabled, mission_log, latest_frame, video_writer
     cap = cv2.VideoCapture(STREAM_URL)
+    
+    # Define video recording filename
+    session_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+    video_filename = os.path.join(MISSION_DIR, f"session_{session_time}.avi")
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')  # Codec for .avi
     
     while True:
         success, frame = cap.read()
         if not success:
             break
         
+        # Process with AI if enabled
         if ai_enabled:
-            # Half-precision for faster 3050 processing
             results = model(frame, stream=True, device=device, half=(device == 'cuda'), conf=0.4)
             for r in results:
-                # Specific defect logging
+                # Log detections
                 for box in r.boxes:
                     cls_name = model.names[int(box.cls[0])]
                     entry = f"{datetime.now().strftime('%H:%M:%S')} - DETECTED: {cls_name.upper()}"
                     if not mission_log or entry != mission_log[-1]:
                         mission_log.append(entry)
-                frame = r.plot()
+                frame = r.plot()  # Draw bounding boxes
         
+        # 1. Update latest frame buffer for snapshots
+        latest_frame = frame.copy()
+        
+        # 2. Handle Video Recording (Automatic)
+        if video_writer is None:
+            height, width, _ = frame.shape
+            video_writer = cv2.VideoWriter(video_filename, fourcc, 20.0, (width, height))
+        
+        video_writer.write(frame)
+
+        # 3. Stream to Flask
         ret, buffer = cv2.imencode('.jpg', frame)
         yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
 
@@ -52,11 +75,24 @@ def index():
 def video_feed():
     return Response(get_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+@app.route('/save_snapshot')
+def save_snapshot():
+    global latest_frame
+    if latest_frame is not None:
+        filename = f"snap_{datetime.now().strftime('%H%M%S')}.jpg"
+        filepath = os.path.join(MISSION_DIR, filename)
+        cv2.imwrite(filepath, latest_frame)
+        msg = f"SNAPSHOT SAVED: {filename}"
+        mission_log.append(msg)
+        return jsonify({"status": "Success", "file": filepath})
+    return jsonify({"status": "Error", "message": "No frame available"})
+
 @app.route('/toggle_ai')
 def toggle_ai():
     global ai_enabled
     ai_enabled = not ai_enabled
-    mission_log.append(f"{datetime.now().strftime('%H:%M:%S')} - AI Overlay {'ENABLED' if ai_enabled else 'DISABLED'}")
+    status_msg = f"AI Overlay {'ENABLED' if ai_enabled else 'DISABLED'}"
+    mission_log.append(f"{datetime.now().strftime('%H:%M:%S')} - {status_msg}")
     return jsonify({"status": "AI Active" if ai_enabled else "AI Idle"})
 
 @app.route('/get_logs')
@@ -70,5 +106,9 @@ def check_sensor(name):
     return jsonify({"message": msg})
 
 if __name__ == '__main__':
-    # Laptop server runs on port 5001
-    app.run(host='0.0.0.0', port=5001, threaded=True)
+    try:
+        app.run(host='0.0.0.0', port=5001, threaded=True)
+    finally:
+        # Release the video writer when the app stops
+        if video_writer:
+            video_writer.release()
