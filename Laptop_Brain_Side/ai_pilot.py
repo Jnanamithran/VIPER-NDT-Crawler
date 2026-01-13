@@ -1,114 +1,97 @@
 import cv2
 import torch
-import numpy as np
+import requests
 import os
+import numpy as np
 from flask import Flask, render_template, Response, jsonify
 from ultralytics import YOLO
 from datetime import datetime
 
-app = Flask(__name__)
+base_dir = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, template_folder=os.path.join(base_dir, 'templates'))
 
-# --- CONFIGURATION ---
-PI_IP = "10.112.192.170"
+PI_IP = "10.203.55.170" 
 STREAM_URL = f"http://{PI_IP}:5000/video_feed"
-MISSION_DIR = "missions"
+TELEMETRY_URL = f"http://{PI_IP}:5000/telemetry"
+MISSION_DIR = os.path.join(base_dir, "missions")
+if not os.path.exists(MISSION_DIR): os.makedirs(MISSION_DIR)
 
-# Ensure missions folder exists
-if not os.path.exists(MISSION_DIR):
-    os.makedirs(MISSION_DIR)
-
-# RTX 3050 GPU Acceleration
+# AI Module Identification on RTX 3050
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-model = YOLO('yolov8s.pt') 
+model = YOLO(os.path.join(base_dir, 'models', 'yolov8s.pt')) 
 
-# Global State
 ai_enabled = False
-mission_log = []
-latest_frame = None  # Buffer for snapshots
-video_writer = None  # Global video writer object
+mission_log = ["SYSTEM INITIALIZED"]
+video_writer = None
+
+def get_live_metrics():
+    """Identifies results by scanning the missions directory"""
+    snaps = [f for f in os.listdir(MISSION_DIR) if f.startswith('AI_')]
+    count = len(snaps)
+    # Integrity drops 5% per anomaly found in current scan
+    health = max(0, 100 - (count * 5))
+    return count, f"{health}%"
 
 def get_stream():
-    global ai_enabled, mission_log, latest_frame, video_writer
+    global ai_enabled, mission_log, video_writer
     cap = cv2.VideoCapture(STREAM_URL)
     
-    # Define video recording filename
-    session_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-    video_filename = os.path.join(MISSION_DIR, f"session_{session_time}.avi")
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')  # Codec for .avi
-    
+    # Continuous Background Recording (Starts on Run)
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    v_path = os.path.join(MISSION_DIR, f"MISSION_{datetime.now().strftime('%H%M%S')}.avi")
+    video_writer = cv2.VideoWriter(v_path, fourcc, 20.0, (640, 480))
+
     while True:
         success, frame = cap.read()
         if not success:
-            break
+            cap.release(); cv2.waitKey(2000); cap = cv2.VideoCapture(STREAM_URL)
+            continue
         
-        # Process with AI if enabled
+        clean_frame = frame.copy()
         if ai_enabled:
-            results = model(frame, stream=True, device=device, half=(device == 'cuda'), conf=0.4)
+            results = model(frame, stream=True, device=device, conf=0.45)
             for r in results:
-                # Log detections
                 for box in r.boxes:
-                    cls_name = model.names[int(box.cls[0])]
-                    entry = f"{datetime.now().strftime('%H:%M:%S')} - DETECTED: {cls_name.upper()}"
-                    if not mission_log or entry != mission_log[-1]:
-                        mission_log.append(entry)
-                frame = r.plot()  # Draw bounding boxes
-        
-        # 1. Update latest frame buffer for snapshots
-        latest_frame = frame.copy()
-        
-        # 2. Handle Video Recording (Automatic)
-        if video_writer is None:
-            height, width, _ = frame.shape
-            video_writer = cv2.VideoWriter(video_filename, fourcc, 20.0, (width, height))
-        
-        video_writer.write(frame)
+                    cls = model.names[int(box.cls[0])]
+                    conf = float(box.conf[0])
+                    if conf > 0.50:
+                        ts = datetime.now().strftime('%H%M%S_%f')
+                        # IDENTIFIED RESULT: Raw and AI dual-save with overlays
+                        cv2.imwrite(os.path.join(MISSION_DIR, f"RAW_{ts}.jpg"), clean_frame)
+                        cv2.imwrite(os.path.join(MISSION_DIR, f"AI_{ts}.jpg"), r.plot())
+                        mission_log.append(f"IDENTIFIED: {cls.upper()}")
+                frame = r.plot()
 
-        # 3. Stream to Flask
+        video_writer.write(frame)
         ret, buffer = cv2.imencode('.jpg', frame)
         yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
 
 @app.route('/')
-def index():
-    return render_template('dashboard.html')
+def dashboard(): return render_template('dashboard.html')
 
 @app.route('/video_feed')
-def video_feed():
-    return Response(get_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
+def video_feed(): return Response(get_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-@app.route('/save_snapshot')
-def save_snapshot():
-    global latest_frame
-    if latest_frame is not None:
-        filename = f"snap_{datetime.now().strftime('%H%M%S')}.jpg"
-        filepath = os.path.join(MISSION_DIR, filename)
-        cv2.imwrite(filepath, latest_frame)
-        msg = f"SNAPSHOT SAVED: {filename}"
-        mission_log.append(msg)
-        return jsonify({"status": "Success", "file": filepath})
-    return jsonify({"status": "Error", "message": "No frame available"})
+# FIXED ROUTE: Matches your browser's expectation
+@app.route('/admin_portal')
+def admin_portal():
+    """Live Management Web App for structural health monitoring"""
+    defects, health = get_live_metrics()
+    live_data = {"date": "TODAY", "defects": defects, "health": health}
+    baseline = {"date": "2025-10-15", "defects": 2, "health": "90%"}
+    return render_template('admin.html', live=live_data, base=baseline)
+
+@app.route('/get_logs')
+def get_logs():
+    try: diag = requests.get(TELEMETRY_URL, timeout=0.8).json()
+    except: diag = {"voltage": "OFFLINE", "temp": "N/A"}
+    return jsonify({"logs": mission_log[-12:], "health": diag})
 
 @app.route('/toggle_ai')
 def toggle_ai():
     global ai_enabled
     ai_enabled = not ai_enabled
-    status_msg = f"AI Overlay {'ENABLED' if ai_enabled else 'DISABLED'}"
-    mission_log.append(f"{datetime.now().strftime('%H:%M:%S')} - {status_msg}")
     return jsonify({"status": "AI Active" if ai_enabled else "AI Idle"})
 
-@app.route('/get_logs')
-def get_logs():
-    return jsonify(mission_log[-15:])
-
-@app.route('/check_sensor/<name>')
-def check_sensor(name):
-    msg = f"{datetime.now().strftime('%H:%M:%S')} - {name.upper()} CHECK: NOMINAL"
-    mission_log.append(msg)
-    return jsonify({"message": msg})
-
 if __name__ == '__main__':
-    try:
-        app.run(host='0.0.0.0', port=5001, threaded=True)
-    finally:
-        # Release the video writer when the app stops
-        if video_writer:
-            video_writer.release()
+    app.run(host='0.0.0.0', port=5001, threaded=True)
