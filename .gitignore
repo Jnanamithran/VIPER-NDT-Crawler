@@ -1,10 +1,43 @@
-# Python bytecode
+# ================================================================= #
+#                   VIPER-NDT-Crawler .gitignore                    #
+# ================================================================= #
+
+# --- General ---
+# System files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.swp
+
+# --- IDEs & Editors ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# --- Sensitive Information ---
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Service account keys
+serviceAccountKey.json
+
+# --- Python ---
+# Bytecode
 __pycache__/
 *.py[cod]
 *$py.class
 
 # Virtual environments
-.env
 venv/
 ENV/
 env/
@@ -17,9 +50,7 @@ dist/
 *.egg
 pip-wheel-metadata/
 
-# Logs and databases
-*.log
-logs/
+# Databases
 *.sqlite3
 *.db
 
@@ -32,42 +63,33 @@ htmlcov/
 # Jupyter
 .ipynb_checkpoints
 
-# IDEs and editors
-.vscode/
-.idea/
-*.sublime-project
-*.sublime-workspace
+# --- Node.js / Frontend ---
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# System files
-.DS_Store
-Thumbs.db
+# Dependencies
+VIPER_Frontend/node_modules/
 
-# Model checkpoints / training outputs
-# Ignore large model binaries and common checkpoint formats created during runs
-checkpoints/
-outputs/
-weights/
+# Build outputs
+VIPER_Frontend/dist/
+VIPER_Frontend/dist-ssr/
+
+# Local config
+VIPER_Frontend/*.local
+
+# --- Project Specific ---
+# AI Server mission data (generated at runtime)
+AI_Server/missions/
+
+# Model files (downloaded, not tracked in git)
 *.pt
 *.pth
 *.ckpt
 *.onnx
 
-# Other caches
-*.cache
-*.pytest_cache/
-
-# Temporary files
-*.tmp
-*.swp
-
-# Sensitive files
-.env.local
-
-# Raspberry Pi / device artifacts
+# Raspberry Pi artifacts
 *.pid
-
-# Missions (runtime-generated)
-missions/
-models/
-    
-# End of file
