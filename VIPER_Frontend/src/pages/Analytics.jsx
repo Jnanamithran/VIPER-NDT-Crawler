@@ -70,24 +70,24 @@ const Analytics = () => {
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
-      <header className="border-b border-slate-800 pb-8">
-        <h2 className="text-5xl font-black italic tracking-tighter uppercase text-white">
+    <div className="space-y-8 animate-in fade-in duration-700">
+      <div className="border-l-4 border-orange-600 pl-6 pb-8">
+        <h2 className="text-4xl font-black tracking-tight text-white">
           Mission Metrics
         </h2>
-        <p className="text-slate-500 text-sm font-bold tracking-wide mt-2">
-          IDENTIFYING TEMPORAL DEGRADATION LOGS
+        <p className="text-slate-400 text-sm font-semibold mt-2">
+          Detection analysis and temporal degradation logs
         </p>
-      </header>
+      </div>
 
-      {/* Dynamic Chart Container */}
-      <div className="bg-slate-900 rounded-[2.5rem] p-10 border border-slate-800 shadow-2xl">
+      {/* Chart Container */}
+      <div className="bg-slate-900 rounded-lg p-8 border border-slate-800 shadow-xl">
         <div className="flex justify-between items-center mb-8">
-          <h3 className="text-slate-400 font-black uppercase text-xs tracking-widest">
+          <h3 className="text-slate-300 font-bold uppercase text-xs tracking-widest">
             Detection Growth Over Time
           </h3>
-          <span className="text-[10px] text-orange-500 font-bold px-3 py-1 bg-orange-500/10 rounded-full border border-orange-500/20">
-            REAL-TIME SYNC
+          <span className="text-xs text-orange-400 font-bold px-3 py-1 bg-orange-600/10 rounded border border-orange-600/30">
+            REAL-TIME
           </span>
         </div>
         <div className="h-80">

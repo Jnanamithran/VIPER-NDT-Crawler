@@ -1,97 +1,179 @@
-import os, cv2, sqlite3, firebase_admin
+import os
+import cv2
+import time
+import threading
+import logging
+import torch
+from datetime import datetime
 from flask import Flask, Response, jsonify
 from flask_cors import CORS
 from ultralytics import YOLO
-from datetime import datetime
-from firebase_admin import credentials, db
 
+# ================= LOGGING =================
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("VIPER")
+
+# ================= FLASK =================
 app = Flask(__name__)
 CORS(app)
 
-# --- CONFIGURATION ---
-PI_IP = "10.203.55.170" 
+# ================= OVERLAY STATE =================
+overlay_state = {
+    "ai": True,
+    "gas": False,
+    "thermal": False
+}
+
+# ================= PATHS =================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MISSION_DIR = os.path.join(BASE_DIR, "missions")
+os.makedirs(MISSION_DIR, exist_ok=True)
+
+def new_mission_folder():
+    name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    path = os.path.join(MISSION_DIR, name)
+    os.makedirs(os.path.join(path, "images"), exist_ok=True)
+    os.makedirs(os.path.join(path, "videos"), exist_ok=True)
+    return path
+
+MISSION_PATH = new_mission_folder()
+IMG_DIR = os.path.join(MISSION_PATH, "images")
+VID_DIR = os.path.join(MISSION_PATH, "videos")
+
+# ================= YOLO =================
 MODEL_PATH = "./yolov8s.pt"
+device = "cuda" if torch.cuda.is_available() else "cpu"
+logger.info(f"Using device: {device}")
 
-# --- FIREBASE SETUP ---
-try:
-    cred = credentials.Certificate("serviceAccountKey.json")
-    firebase_admin.initialize_app(cred, {'databaseURL': 'https://viper-ndt-default-rtdb.firebaseio.com'})
-except Exception as e:
-    print(f"Cloud Logic Identification Error: {e}")
+model = YOLO(MODEL_PATH).to(device)
 
-# --- NESTED FOLDER INITIALIZATION ---
-session_id = datetime.now().strftime('%Y-%m-%d_%H-%M')
-BASE_DIR = os.path.join("missions", session_id)
-IMG_DIR = os.path.join(BASE_DIR, "images")
-VID_DIR = os.path.join(BASE_DIR, "videos")
+# ================= RTSP BRIDGE =================
+class RTSPBridge:
+    def __init__(self, url):
+        self.url = url
+        self.cap = None
+        self.frame = None
+        self.lock = threading.Lock()
+        threading.Thread(target=self._reader, daemon=True).start()
 
-for folder in [IMG_DIR, VID_DIR]:
-    os.makedirs(folder, exist_ok=True)
+    def _reader(self):
+        while True:
+            if self.cap is None or not self.cap.isOpened():
+                logger.info("Connecting RTSP...")
+                self.cap = cv2.VideoCapture(self.url, cv2.CAP_FFMPEG)
+                time.sleep(2)
+                continue
 
-# Identify Video Recording Pipeline
-video_out = cv2.VideoWriter(os.path.join(VID_DIR, "mission_audit.avi"), 
-                            cv2.VideoWriter_fourcc(*'XVID'), 20.0, (640, 480))
+            ret, frame = self.cap.read()
+            if not ret:
+                logger.warning("RTSP lost. Reconnecting...")
+                self.cap.release()
+                self.cap = None
+                time.sleep(2)
+                continue
 
-def init_db():
-    conn = sqlite3.connect('viper_audit.db')
-    conn.execute('CREATE TABLE IF NOT EXISTS logs (ts TEXT, cls TEXT, img TEXT, session TEXT)')
-    conn.close()
+            with self.lock:
+                self.frame = frame
 
-init_db()
-model = YOLO(MODEL_PATH)
-frame_count = 0
+stream = RTSPBridge("rtsp://10.203.55.170:8554/viper")
 
-def process_stream():
-    global frame_count
-    cap = cv2.VideoCapture(f"http://{PI_IP}:5000/video_feed")
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+# ================= SENSOR STUBS =================
+def read_gas_sensor():
+    return 230
+
+def read_thermal_sensor():
+    return True
+
+# ================= VIDEO WRITER =================
+video_writer = None
+fourcc = cv2.VideoWriter_fourcc(*"XVID")
+
+# ================= VIDEO PIPELINE =================
+def generate_feed():
+    global video_writer
+
+    snapshot_cooldown = 0
 
     while True:
-        success, frame = cap.read()
-        if not success: break
-        
-        # Ensure frame is exactly 640x480 for the VideoWriter
-        frame = cv2.resize(frame, (640, 480))
-        frame_count += 1
-        
-        # LAG FIX: Only identify defects every 3rd frame
-        if frame_count % 3 == 0:
-            results = model(frame, stream=True, conf=0.5, verbose=False)
-            for r in results:
-                frame = r.plot()
-                if len(r.boxes) > 0:
-                    for box in r.boxes:
-                        cls = model.names[int(box.cls[0])]
-                        ts = datetime.now().strftime('%H:%M:%S')
-                        img_name = f"DET_{datetime.now().strftime('%H%M%S')}.jpg"
-                        
-                        # Store image in the specific /images sub-folder
-                        cv2.imwrite(os.path.join(IMG_DIR, img_name), frame)
-                        
-                        with sqlite3.connect('viper_audit.db') as conn:
-                            conn.execute('INSERT INTO logs VALUES (?, ?, ?, ?)', 
-                                         (ts, cls, img_name, session_id))
-                        
-                        try:
-                            db.reference(f'missions/{session_id}').push({
-                                'time': ts, 'type': cls, 'status': 'CRITICAL'
-                            })
-                        except: pass
-        
-        # Write every frame to the /videos sub-folder
-        video_out.write(frame)
-        
-        ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
-        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+        with stream.lock:
+            frame = stream.frame
 
-@app.route('/ai_feed')
-def ai_feed(): return Response(process_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
+        if frame is None:
+            time.sleep(0.03)
+            continue
 
-@app.route('/api/history')
-def get_history():
-    with sqlite3.connect('viper_audit.db') as conn:
-        cursor = conn.execute('SELECT * FROM logs ORDER BY ts DESC LIMIT 15')
-        return jsonify([{"time": r[0], "type": r[1], "img": r[2]} for r in cursor.fetchall()])
+        h, w, _ = frame.shape
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, threaded=True)
+        # Init recorder
+        if video_writer is None:
+            video_path = os.path.join(VID_DIR, "mission_audit.avi")
+            video_writer = cv2.VideoWriter(video_path, fourcc, 20, (w, h))
+
+        detected = False
+
+        # ---------- AI OVERLAY ----------
+        if overlay_state["ai"]:
+            results = model(frame, conf=0.4, verbose=False)
+            frame = results[0].plot()
+            if len(results[0].boxes) > 0:
+                detected = True
+
+        # ---------- GAS OVERLAY ----------
+        if overlay_state["gas"]:
+            gas = read_gas_sensor()
+            cv2.putText(frame, f"GAS: {gas} ppm", (20, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+
+        # ---------- THERMAL OVERLAY ----------
+        if overlay_state["thermal"]:
+            cv2.putText(frame, "THERMAL ACTIVE", (20, 80),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+        # ---------- AUTO SNAPSHOT ----------
+        if detected and snapshot_cooldown == 0:
+            img_name = datetime.now().strftime("%H-%M-%S") + ".jpg"
+            cv2.imwrite(os.path.join(IMG_DIR, img_name), frame)
+            snapshot_cooldown = 30
+
+        snapshot_cooldown = max(0, snapshot_cooldown - 1)
+
+        # ---------- RECORD ----------
+        video_writer.write(frame)
+
+        # ---------- STREAM ----------
+        ret, jpg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        if not ret:
+            continue
+
+        yield (
+            b"--frame\r\n"
+            b"Content-Type: image/jpeg\r\n\r\n" +
+            jpg.tobytes() +
+            b"\r\n"
+        )
+
+# ================= ROUTES =================
+@app.route("/ai_feed")
+@app.route("/frame")   # ✅ FIXED
+def frame_feed():
+    return Response(
+        generate_feed(),
+        mimetype="multipart/x-mixed-replace; boundary=frame"
+    )
+
+@app.route("/overlay", methods=["GET"])
+def get_overlay():
+    return jsonify(overlay_state)
+
+@app.route("/overlay/<name>/<action>", methods=["POST"])
+def set_overlay(name, action):
+    if name not in overlay_state:
+        return jsonify({"error": "Invalid overlay"}), 400
+
+    overlay_state[name] = action == "on"
+    logger.info(f"{name.upper()} overlay -> {overlay_state[name]}")
+    return jsonify(overlay_state)
+
+# ================= START =================
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5001, threaded=True)

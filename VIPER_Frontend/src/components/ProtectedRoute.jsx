@@ -5,7 +5,7 @@ import { auth } from '../firebase';
 const ProtectedRoute = ({ children }) => {
   const [user, loading] = useAuthState(auth);
 
-  if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-orange-500">IDENTIFYING CREDENTIALS...</div>;
+  if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-orange-400 font-bold uppercase tracking-widest">IDENTIFYING CREDENTIALS...</div>;
   if (!user) return <Navigate to="/owner" replace />; // Redirects unauthorized users
 
   return children;
