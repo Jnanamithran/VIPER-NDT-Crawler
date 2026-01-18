@@ -1,24 +1,48 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index.jsx";
-import Analytics from "./pages/Analytics.jsx";
-import Manager from "./pages/Manager.jsx";
-import NotFound from "./pages/NotFound.jsx";
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Layout } from './components/Layout';
+import Dashboard from './pages/Dashboard';
+import Analytics from './pages/Analytics';
+import Login from './pages/Login';
+import OwnerPortal from './pages/OwnerPortal';
+import ProtectedRoute from './components/ProtectedRoute';
 
-const queryClient = new QueryClient();
+function App() {
+  return (
+    <Router>
+      <Routes>
+        {/* Public Controller Dashboard */}
+        <Route path="/" element={
+          <Layout>
+            <Dashboard />
+          </Layout>
+        } />
+        
+        {/* Public Analytics */}
+        <Route path="/analytics" element={
+          <Layout>
+            <Analytics />
+          </Layout>
+        } />
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+        {/* Login Route */}
+        <Route path="/login" element={<Login />} />
 
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/manager" element={<Manager />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-  </QueryClientProvider>
-);
+        {/* Protected Owner/Manager Portal - Unified */}
+        <Route path="/portal" element={
+          <ProtectedRoute>
+            <OwnerPortal />
+          </ProtectedRoute>
+        } />
+
+        {/* Legacy routes redirect */}
+        <Route path="/owner" element={<Navigate to="/portal" replace />} />
+        <Route path="/manager/*" element={<Navigate to="/portal" replace />} />
+
+        {/* Catch-all redirect */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
+  );
+}
 
 export default App;
