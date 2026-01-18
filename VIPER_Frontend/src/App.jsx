@@ -1,23 +1,24 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Layout } from './components/Layout';
-import Dashboard from './pages/Dashboard';
-import Analytics from './pages/Analytics';
-import OwnerPortal from './pages/OwnerPortal';
-import ProtectedRoute from './components/ProtectedRoute'; // Secure access logic
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Index from "./pages/Index.jsx";
+import Analytics from "./pages/Analytics.jsx";
+import Manager from "./pages/Manager.jsx";
+import NotFound from "./pages/NotFound.jsx";
 
-function App() {
-  return (
-    <Router>
-      <Layout>
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+
+      <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<Index />} />
           <Route path="/analytics" element={<Analytics />} />
-          {/* Only identified managers can access the data hub */}
-          <Route path="/owner" element={<OwnerPortal />} />
+          <Route path="/manager" element={<Manager />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
-      </Layout>
-    </Router>
-  );
-}
+      </BrowserRouter>
+  </QueryClientProvider>
+);
 
 export default App;
