@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from "firebase/auth";
 import { auth } from "../firebase";
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -12,6 +13,8 @@ const LoginForm = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      const persistence = rememberMe ? browserLocalPersistence : browserSessionPersistence;
+      await setPersistence(auth, persistence);
       await signInWithEmailAndPassword(auth, email, password);
     } catch {
       setError("Invalid email or password");
@@ -69,6 +72,18 @@ const LoginForm = () => {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/50 transition-all duration-200 font-medium"
           />
+        </div>
+
+        <div className="flex items-center justify-between mb-8">
+          <label className="flex items-center text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="form-checkbox h-4 w-4 text-blue-600 transition duration-150 ease-in-out"
+            />
+            <span className="ml-2">Remember me</span>
+          </label>
         </div>
 
         {/* Login Button */}

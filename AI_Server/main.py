@@ -1,4 +1,5 @@
 import os
+import json
 import cv2
 import time
 import threading
@@ -39,6 +40,24 @@ def new_mission_folder():
 MISSION_PATH = new_mission_folder()
 IMG_DIR = os.path.join(MISSION_PATH, "images")
 VID_DIR = os.path.join(MISSION_PATH, "videos")
+
+# ================= DATABASE (HISTORY) =================
+HISTORY_FILE = os.path.join(BASE_DIR, "history.json")
+
+def load_history():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+def save_detection_event(entry):
+    history = load_history()
+    history.append(entry)
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(history, f, indent=2)
 
 # ================= YOLO =================
 MODEL_PATH = "./yolov8s.pt"
@@ -110,6 +129,8 @@ def generate_feed():
             video_writer = cv2.VideoWriter(video_path, fourcc, 20, (w, h))
 
         detected = False
+        label = "Unknown"
+        confidence = 0.0
 
         # ---------- AI OVERLAY ----------
         if overlay_state["ai"]:
@@ -117,6 +138,10 @@ def generate_feed():
             frame = results[0].plot()
             if len(results[0].boxes) > 0:
                 detected = True
+                # Extract detection details
+                box = results[0].boxes[0]
+                label = model.names[int(box.cls)]
+                confidence = float(box.conf)
 
         # ---------- GAS OVERLAY ----------
         if overlay_state["gas"]:
@@ -133,6 +158,15 @@ def generate_feed():
         if detected and snapshot_cooldown == 0:
             img_name = datetime.now().strftime("%H-%M-%S") + ".jpg"
             cv2.imwrite(os.path.join(IMG_DIR, img_name), frame)
+            
+            # Save to DB
+            save_detection_event({
+                "time": datetime.now().strftime("%H:%M"),
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "label": label,
+                "confidence": confidence,
+                "image": img_name
+            })
             snapshot_cooldown = 30
 
         snapshot_cooldown = max(0, snapshot_cooldown - 1)
@@ -173,6 +207,11 @@ def set_overlay(name, action):
     overlay_state[name] = action == "on"
     logger.info(f"{name.upper()} overlay -> {overlay_state[name]}")
     return jsonify(overlay_state)
+
+@app.route("/api/history", methods=["GET"])
+def get_history():
+    """Endpoint for Frontend Analytics to fetch old info"""
+    return jsonify(load_history())
 
 # ================= START =================
 if __name__ == "__main__":
