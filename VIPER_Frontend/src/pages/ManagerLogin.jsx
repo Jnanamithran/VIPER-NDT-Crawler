@@ -1,32 +1,59 @@
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { useState } from 'react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
-import ManagerPortal from './ManagerPortal';
-import ManagerLogin from './ManagerLogin';
+import { AlertTriangle, Lock, Mail, LogIn, ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-const Manager = () => {
-  const [user, loading, error] = useAuthState(auth);
+const ManagerLogin = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [showError, setShowError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Show login form while auth is checking
-  if (loading) {
-    return <ManagerLogin />;
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // User state will update and Manager component will show portal
+    } catch (err) {
+      const errorMessage = err.code === 'auth/invalid-credential' 
+        ? 'Invalid email or password.' 
+        : 'Authentication failed. Please try again.';
+      setError(errorMessage);
+      setShowError(true);
+      setTimeout(() => setShowError(false), 5000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  // If error occurred, show login form
-  if (error) {
-    console.error('Auth error:', error);
-    return <ManagerLogin />;
-  }
-
-  // If user is logged in, show portal
-  if (user) {
-    return <ManagerPortal />;
-  }
-
-  // Default: show login form
-  return <ManagerLogin />;
-};
-
-export default Manager;
+  return (
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Simple Header */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-md border-b border-border">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
+              <span className="text-primary-foreground font-display font-bold text-lg">V</span>
+            </div>
+            <span className="font-display font-bold text-lg tracking-wider">
+              <span className="text-foreground">VIPER</span>
+              <span className="text-primary ml-1">NDT</span>
+            </span>
+          </Link>
+          <Link
+            to="/"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="text-sm">Back</span>
+          </Link>
+        </div>
+      </div>
       
       {/* Background effects */}
       <div className="absolute inset-0 grid-background opacity-20" />
@@ -106,6 +133,7 @@ export default Manager;
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    required
                     className="
                       w-full pl-10 pr-4 py-3 rounded-lg
                       bg-muted/50 border border-border
@@ -113,7 +141,7 @@ export default Manager;
                       focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary
                       transition-all duration-200
                     "
-                    placeholder="admin@viper.ai"
+                    placeholder="your-email@example.com"
                   />
                 </div>
               </div>
@@ -128,6 +156,7 @@ export default Manager;
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    required
                     className="
                       w-full pl-10 pr-4 py-3 rounded-lg
                       bg-muted/50 border border-border
@@ -149,44 +178,23 @@ export default Manager;
                   font-display font-bold uppercase tracking-wider
                   transition-all duration-200
                   hover:brightness-110 disabled:opacity-50
-                  relative overflow-hidden
+                  relative overflow-hidden flex items-center justify-center gap-2
                 "
                 style={{ boxShadow: '0 0 20px hsl(24 100% 50% / 0.3)' }}
               >
                 {isLoading ? (
-                  <span className="flex items-center justify-center gap-2">
+                  <>
                     <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                    Authenticating...
-                  </span>
+                    <span>Authenticating...</span>
+                  </>
                 ) : (
-                  'Access Portal'
+                  <>
+                    <LogIn className="w-4 h-4" />
+                    <span>Access Portal</span>
+                  </>
                 )}
               </button>
             </form>
-            
-            {/* Test Credentials */}
-            <div className="mt-6 p-3 rounded-lg bg-muted/30 border border-border">
-              <p className="text-xs font-display uppercase tracking-wider text-muted-foreground mb-2">
-                Test Credentials
-              </p>
-              <p className="text-xs font-mono text-muted-foreground">
-                Email: <span className="text-foreground">admin@viper.ai</span>
-              </p>
-              <p className="text-xs font-mono text-muted-foreground">
-                Pass: <span className="text-foreground">password123</span>
-              </p>
-            </div>
-            
-            {/* Footer Links */}
-            <div className="mt-6 flex items-center justify-between">
-              <button className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
-                <HelpCircle className="w-3 h-3" />
-                Technical Support
-              </button>
-              <button className="text-xs text-muted-foreground hover:text-primary transition-colors">
-                Reset Password
-              </button>
-            </div>
           </div>
         </div>
       </main>
@@ -194,4 +202,4 @@ export default Manager;
   );
 };
 
-export default Manager;
+export default ManagerLogin;
